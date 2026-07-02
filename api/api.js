@@ -18,6 +18,15 @@ try {
   process.exit(1);
 }
 
+// Let the live API key come from an env var so it never has to be committed to
+// a public repo. If STRATUS_API_KEY is set, it overrides the placeholder key in
+// sites.json for every configured site.
+if (process.env.STRATUS_API_KEY && sites?.sites) {
+  for (const site of Object.values(sites.sites)) {
+    site.api_key = process.env.STRATUS_API_KEY;
+  }
+}
+
 const sessions = new Map(); // uuid → session
 const siteUsage = new Map(); // api_key → timestamp[]
 const ipLimits = new Map(); // ip → timestamp[]
