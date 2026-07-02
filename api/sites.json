@@ -4,7 +4,7 @@
       "api_key": "sk_live_name_here",
       "enabled": true,
       "max_concurrent_sessions": 50,
-      "max_session_seconds": 900,
+      "max_session_seconds": 1140,
       "limits": {
         "per_minute": 999999,
         "per_hour": 999999,
