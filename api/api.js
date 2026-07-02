@@ -276,7 +276,19 @@ async function doClaimGame(session, queue_id) {
       }),
     })
   ).json();
-  if (d.status === 200 && d.data?.result) return decryptPayload(d.data.result);
+  // Raccoon returns its own protocol `status` in the JSON body (not the HTTP
+  // code). A completed claim carries data.result — accept it whether Raccoon
+  // labels it 200 or 201 (it changed the claim response to 201, the same code
+  // it already uses for "queued" in doPlayGame/doPollQueue).
+  if ((d.status === 200 || d.status === 201) && d.data?.result)
+    return decryptPayload(d.data.result);
+  // 201 without a result means "still provisioning" — signal the caller to keep
+  // polling the queue instead of failing the session; adopt a fresh queue id if
+  // Raccoon handed one back.
+  if (d.status === 201 || d.data?.play_queue_id) {
+    if (d.data?.play_queue_id) session.queue_id = d.data.play_queue_id;
+    return null;
+  }
   throw new Error(`Failed to claim game. API Status: ${d.status}`);
 }
 
@@ -836,6 +848,11 @@ app.get("/cloud/v1/getQueue", auth, async (req, res) => {
 
     if (pos === 0) {
       const serverData = await doClaimGame(session, session.queue_id);
+      // doClaimGame returns null when Raccoon says the claim is still
+      // provisioning (201) — keep the client polling instead of erroring.
+      if (!serverData) {
+        return res.json({ status: "queue", queue_pos: 0 });
+      }
       applyServerData(session, serverData);
       session.state = "finished_queue";
       session.finished_queue_at = Date.now();
